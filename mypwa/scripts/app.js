@@ -1,5 +1,6 @@
 var createCombo = (function(){
     /**
+     * author -- Greg
      * @param {* array } dataCombo 
      * @param {* DOM object } target 
      * @param {* valur for selected option} value 
