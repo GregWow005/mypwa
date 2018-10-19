@@ -3,7 +3,7 @@ var createCombo = (function(){
      * @param {* array } dataCombo 
      * @param {* DOM object } target 
      * @param {* valur for selected option} value 
-     * 
+     * @param Greg
      */
     var built = function(dataCombo,target,value,fn){
         target.html('');
