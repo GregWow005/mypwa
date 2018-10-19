@@ -1,93 +1,65 @@
-// Copyright 2016 Google Inc.
-// 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-// 
-//      http://www.apache.org/licenses/LICENSE-2.0
-// 
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-
-(function() {
-  'use strict';
-
-  var app = {
-    isLoading: true,
-    visibleCards: {},
-    selectedCities: [],
-    spinner: document.querySelector('.loader'),
-    cardTemplate: document.querySelector('.cardTemplate'),
-    container: document.querySelector('.main'),
-    addDialog: document.querySelector('.dialog-container'),
-    daysOfWeek: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-  };
-
-
-  /*****************************************************************************
-   *
-   * Event listeners for UI elements
-   *
-   ****************************************************************************/
-
-  /* document.getElementById('butRefresh').addEventListener('click', function() {
-    
-  }); */
-
-
-
-  /*****************************************************************************
-   *
-   * Methods to update/refresh the UI
-   *
-   ****************************************************************************/
-  var app = {
-	  cities : []
-  };
-
-  app.cities = localStorage.cities;
-  if (app.cities) {
-    app.cities = JSON.parse(app.cities);
-    app.cities.forEach(function(city) {
-		console.log('city',city);
-    });
-  } else {
-    /* The user is using the app for the first time, or the user has not
-     * saved any cities, so show the user some fake data. A real app in this
-     * scenario could guess the user's location via IP lookup and then inject
-     * that data into the page.
+var createCombo = (function(){
+    /**
+     * @param {* array } dataCombo 
+     * @param {* DOM object } target 
+     * @param {* valur for selected option} value 
      */
-    //app.updateForecastCard(initialWeatherForecast);
-    app.cities = [
-      {key: initialWeatherForecast.key, label: initialWeatherForecast.label}
-    ];
-  }
+    var built = function(dataCombo,target,value,fn){
+        target.html('');
+        var array = new Uint32Array(1);
+        var combo_class = 'js-combo-' + window.crypto.getRandomValues(array);
+        var select_element = $('<select class="' + combo_class + '"></select>');
+        /**
+         * dataCombo structure
+         * option.value -- option value
+         * option.text  -- option text
+         */
+        if(dataCombo === null){
+            select_element.append($('<option>Seleccione valor</option>').prop('disabled',true));
+        } else {
+            select_element.append($('<option>Seleccione valor</option>'));
+            $.each(dataCombo, function (id, option) {
+                var selected = '';
+                //console.log(' TRIGGER: ', parseInt(value) === option.id, value,option.id,option.value);
+                if(typeof value !== undefined && (parseInt(value) === parseInt(option.value))){
+                    selected = "selected";
+                }
+                select_element.append($('<option ' + selected + '></option>').val(option.value).html(option.text));
+            });
+        }
+        target.html(select_element);
+        $(target).on('change','.' + combo_class,{fn:fn},function(e){
+            var this_combo = $(e.currentTarget);
+            fn(this_combo.children(':selected').text(),this_combo.val());
+            //console.log('COMMENT: ', this_combo.children(':selected').text(),'-->',this_combo.val());
+        });
+    };
 
-  app.saveCities = function() {
-	app.cities.forEach(function(city) {
-		console.log('city',city);
-	});
-	fetchResource.fetchData('http://api.citybik.es/v2/networks/bicimad');
-
-    var selectedCities = JSON.stringify(app.selectedCities);
-    localStorage.cities = selectedCities;
-  };
-
-
-	// TODO add service worker code here
-	if ('serviceWorker' in navigator) {
-		navigator.serviceWorker
-		.register('./service-worker.js')
-		.then(function() { 
-			console.log('Service Worker Registered'); 
-		});
-	}
+    var getData = function(text,value){
+        console.log('getData: ', text,value);
+    };
+    return {
+        built   : built,
+        getData : getData
+    };
 })();
 
+var LocalStorageDataApi = (function(){
+
+    var getDataLocalStorage = function(item){
+        window[item] = localStorage.getItem(item) ? JSON.parse(localStorage.getItem(item)) : window[item] ;
+        return window[item];
+    };
+    var setDataLocalStorage = function(item,data){
+        //localStorage.clear();
+        localStorage.setItem(item, JSON.stringify(data));
+    };
+    return {
+        getDataLocalStorage     : getDataLocalStorage,
+        setDataLocalStorage     : setDataLocalStorage
+    };
+    
+})();
 
 var fetchResource = (function(){
 	function logResult(result) {
@@ -149,34 +121,176 @@ var fetchResource = (function(){
 		.then(validateResponse) // 2
 		.then(readResponseAsJSON) // 3
 		.catch(logError);
-	}
+    }
+    
+    var  getCities = function(){
+        var url = 'http://api.citybik.es/v2/networks';
+            // Replace ./data.json with your JSON feed
+        fetch(url).then(response => {
+        return response.json();
+        }).then(data => {
+            // Work with JSON data here
+            $.each( data.networks, function( index, obj ){
+                if(obj.location.country === 'ES'){
+                    LocalStorageDataApi.setDataLocalStorage(obj.location.country + '_' + obj.id ,obj);
+                    //console.log('companny',obj.company,obj.location.city,obj.location.country,obj.name);
+                }
+            });
+            
+        }).catch(err => {
+            // Do something for an error here
+            console.log('Upsss! ', err);
+        });
+    };
+    getCities();
+
+    var  getCompanies = function(){
+        var url = 'http://api.citybik.es/v2/networks/bicimad';
+            // Replace ./data.json with your JSON feed
+        fetch(url).then(response => {
+        return response.json();
+        }).then(data => {
+            // Work with JSON data here
+            var obj = data.network;
+            console.log('companny',obj.company,obj.location.city,obj.location.country,obj.name);
+        }).catch(err => {
+            // Do something for an error here
+            console.error('Upsss! ', err);
+        });
+    };
+    getCompanies();
 
 	return {
 		fetchData : fetchData,
 	};
 })();
 
+var dataApp = (function(){
+    var fetchData = function(url,fn){
+        var networkDataReceived = false;
+        // fetch fresh data
+        var networkUpdate = fetch(url).then(function(response) {
+            return response.json();
+        }).then(function(data) {
+            networkDataReceived = true;
+            fn(data,'NETWORK');
+        });
+        
+        // fetch cached data
+        caches.match(url).then(function(response) {
+            if (!response) throw Error("No data");
+            return response.json();
+        }).then(function(data) {
+            // don't overwrite newer network data
+            if (!networkDataReceived) {
+                fn(data,'CACHES');
+            }
+        }).catch(function() {
+            // we didn't get cached data, the network is our last hope:
+            return networkUpdate;
+        }).catch(function(err){
+            console.log('error: ', err);
+        });
+    };
+    var getCities = function(data,type){
+        console.log('DATA: ', data,type);
+        $.each( data.networks, function( index, obj ){
+            if(obj.location.country === 'ES'){
+                LocalStorageDataApi.setDataLocalStorage(obj.location.country + '_' + obj.id ,obj);
+                //console.log('companny',obj.company,obj.location.city,obj.location.country,obj.name);
+            }
+        });
+        $('body').append(type);
+    };
+    var getStations = function(data,type){
+        console.log('DATA: ', data,type);
+        $('body').append(type);
+    };
+    
+    return {
+        fetchData  : fetchData,
+        getCities  : getCities,
+        getStations: getStations
+    };
+
+})();
+
+dataApp.fetchData('http://api.citybik.es/v2/networks',dataApp.getCities);
+dataApp.fetchData('http://api.citybik.es/v2/networks/bicimad',dataApp.getCities);
+
+var app = {
+  /* isLoading: true,
+  visibleCards: {},
+  selectedCities: [],
+  spinner: document.querySelector('.loader'),
+  cardTemplate: document.querySelector('.cardTemplate'),
+  container: document.querySelector('.main'),
+  addDialog: document.querySelector('.dialog-container'),
+  daysOfWeek: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] */,
+  cities : []
+};
+
+//Document Ready
+(function() {
+  'use strict';
+    app.cities = localStorage.cities;
+    if (app.cities) {
+        app.cities = JSON.parse(app.cities);
+        app.cities.forEach(function(city) {
+            console.log('city',city);
+        });
+    } else {
+        app.cities = [
+            {value: 'ES', text:'ESPAÑA'},
+            {value: 'DE', text:'ALEMANIA'},
+            {value: 'FR', text: 'FRANCIA'}
+        ];
+        LocalStorageDataApi.setDataLocalStorage('cities',app.cities);
+    }
+    //Create combo cities
+    var combo_cities = $('.js-target-combo');
+    createCombo.built(app.cities,combo_cities,'',createCombo.getData);
+    //Add event combo cities
+    /* $(document).on('change','.js-target-combo select',function(e){
+        var this_combo = $(e.currentTarget);
+        console.log('COMMENT: ', this_combo.children(':selected').text(),'--',this_combo.val());
+    }); */
+    var element = '<div class="js-target-combo"></div>';
+    $('body').prepend(element);
+  /*****************************************************************************
+   *
+   * Event listeners for UI elements
+   *
+   ****************************************************************************/
+
+  /* document.getElementById('butRefresh').addEventListener('click', function() {
+    
+}); */
+
+
+  /*****************************************************************************
+   *
+   * Methods to update/refresh the UI
+   *
+   ****************************************************************************/
+   
+
+	// TODO add service worker code here
+	if ('serviceWorker' in navigator) {
+		navigator.serviceWorker
+		.register('./service-worker.js')
+		.then(function() { 
+			//console.log('Service Worker Registered'); 
+		});
+	}
+})();
+
+
 
 
 //fetchResource.fetchData('http://placekitten.com/290/207');
 //fetchResource.fetchData('http://api.citybik.es/v2/networks/bicimad');
   
-
-
-
-
-
-var url = 'http://api.citybik.es/v2/networks/bicimad';
-// Replace ./data.json with your JSON feed
-var a = fetch(url).then(response => {
-  return response.json();
-}).then(data => {
-  // Work with JSON data here
-  return data;
-}).catch(err => {
-  // Do something for an error here
-});
-
 
 var newFetch = (function(){
 	
@@ -236,5 +350,42 @@ var playBLOB = function(data){
 	console.log('data BLOB',data);
 };
 
-getJSON('http://placekitten.com/290/207',playBLOB);
-getJSON('http://api.citybik.es/v2/networks/bicimad',playJSON);
+/* getJSON('http://placekitten.com/290/207',playBLOB);
+getJSON('http://api.citybik.es/v2/networks/bicimad',playJSON); */
+
+
+
+
+
+/**
+ * SECCIONES
+ *  - Select en el header con las ciudades
+ *  - Change Select
+ *      - Template_Ficha -> Ficha con cada uno de las estaciones de esa ciudad
+ *          - Datos
+ *              - Company
+ *              - location.city
+ *              - location.country
+ *              - name
+ *          - Click en ficha 
+ *              -  Template_Station -> Ficha con la estación seleccionada
+ *                  - Datos
+ *                      - empty_slots
+ *                      - free_bikes
+ *                      - name
+ *                      - latitude
+ *                      - longitude
+ *                      - timestamp
+ *                      - Mapa --> Más adelanta
+ * 
+ * 
+ *  Pattern
+ *      Cache then Network
+ *      Cities
+ *           - De momento estarán harcodeadas. Solo tres ciudades como muestra
+ *      Stations
+ *          - Actualizaciones de empty_slots, free_bykes y timestamp
+ *    
+ */
+
+
