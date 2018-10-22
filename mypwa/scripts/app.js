@@ -31,13 +31,13 @@ var createCombo = (function(){
         target.html(select_element);
         $(target).on('change','.' + combo_class,{fn:fn},function(e){
             var this_combo = $(e.currentTarget);
-            fn(this_combo.children(':selected').text(),this_combo.val());
+            fn(this_combo,this_combo.children(':selected').text(),this_combo.val());
             //console.log('COMMENT: ', this_combo.children(':selected').text(),'-->',this_combo.val());
         });
     };
 
-    var getData = function(text,value){
-        console.log('getData: ', text,value);
+    var getData = function(obj,text,value){
+        console.log('getData: ', obj,text,value);
     };
     return {
         built   : built,
@@ -206,7 +206,7 @@ var dataApp = (function(){
     var getStations = function(data,type){
         console.log('Stations: ', data,type);
         $('body').append(type);
-        templates.getStationTemplate(data);
+        templates.getCompanyTemplate(data);
     };
     
     return {
@@ -218,9 +218,9 @@ var dataApp = (function(){
 })();
 
 var templates = (function(){
-    var getStationTemplate = function(result){
+    var getCompanyTemplate = function(result){
         var data = result.network;
-        console.log('getStationTemplate',data);
+        console.log('getCompanyTemplate',data);
         var template = `<div class="card">
         
         <div class="card-content">
@@ -242,10 +242,12 @@ var templates = (function(){
                 ${data.stations.map(obj => `<!--<div class="column is-one-quarter">${obj.name}</div>-->`).join('')} 
             </div>
           </div>
+          <div class="js-data-station"></div>
         </div>
       </div>`;
 
         $('.js-card-stations').html(template);
+        console.log('_STATIONS: ', data.id + '_stations');
         var stations_data = [];
         if(typeof LocalStorageDataApi.getDataLocalStorage(data.id + '_stations')  === 'object'){
             LocalStorageDataApi.getDataLocalStorage(data.id + '_stations').map(obj => stations_data.push({'value':obj.id,'text':obj.name}));
@@ -253,10 +255,30 @@ var templates = (function(){
             data.stations.map(obj => stations_data.push({'value':obj.id,'text':obj.name}));
             LocalStorageDataApi.setDataLocalStorage(data.id + '_stations',data.stations);
         }
-        createCombo.built(stations_data,$('.js-select-stations'),'',createCombo.getData);
+        var select_stations = $('.js-select-stations');
+        select_stations.data('companyid',data.id);
+        createCombo.built(stations_data,select_stations,'',templates.getStationTemplate);
+    };
+
+    var getStationTemplate = function(obj,text,value){
+        var parent_select = obj.closest('.js-select-stations');
+        var company_stations = parent_select.data('companyid') + '_stations';
+        var station = LocalStorageDataApi.getDataLocalStorage(company_stations).find(
+            elem => {
+                if(elem.id === value){
+                    return true;
+                }
+                return false;
+            }
+        );
+        console.log('templates getData: ', obj,text,value,parent_select.data('companyid'),station);
+
+    };
+    var getData = function(text,value){
     };
 
     return {
+        getCompanyTemplate : getCompanyTemplate,
         getStationTemplate : getStationTemplate
     };
 })();
