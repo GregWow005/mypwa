@@ -187,7 +187,7 @@ var dataApp = (function(){
                 fn(data,'CACHES');
             }
         }).catch(function() {
-            // we didn't get cached data, the network is our last hope:
+            // we didn't get cached data, the network is our last hope;  
             return networkUpdate;
         }).catch(function(err){
             console.log('error: ', err);
