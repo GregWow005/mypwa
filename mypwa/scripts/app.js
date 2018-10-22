@@ -194,7 +194,7 @@ var dataApp = (function(){
         });
     };
     var getCities = function(data,type){
-        console.log('DATA: ', data,type);
+        console.log('Cities: ', data,type);
         $.each( data.networks, function( index, obj ){
             if(obj.location.country === 'ES'){
                 LocalStorageDataApi.setDataLocalStorage(obj.location.country + '_' + obj.id ,obj);
@@ -204,8 +204,9 @@ var dataApp = (function(){
         $('body').append(type);
     };
     var getStations = function(data,type){
-        console.log('DATA: ', data,type);
+        console.log('Stations: ', data,type);
         $('body').append(type);
+        templates.getStationTemplate(data);
     };
     
     return {
@@ -216,8 +217,52 @@ var dataApp = (function(){
 
 })();
 
+var templates = (function(){
+    var getStationTemplate = function(result){
+        var data = result.network;
+        console.log('getStationTemplate',data);
+        var template = `<div class="card">
+        
+        <div class="card-content">
+          <div class="media">
+            <div class="media-left">
+              <figure class="image is-48x48">
+                <img src="https://bulma.io/images/placeholders/96x96.png" alt="Placeholder image">
+              </figure>
+            </div>
+            <div class="media-content">
+              <p class="title is-4">${data.company}</p>
+              <p class="subtitle is-6">${data.name}</p>
+            </div>
+          </div>
+      
+          <div class="content">
+            <div class="columns is-multiline is-mobile is-gapless">
+                <div class="column js-select-stations"></div>
+                ${data.stations.map(obj => `<!--<div class="column is-one-quarter">${obj.name}</div>-->`).join('')} 
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+        $('.js-card-stations').html(template);
+        var stations_data = [];
+        if(typeof LocalStorageDataApi.getDataLocalStorage(data.id + '_stations')  === 'object'){
+            LocalStorageDataApi.getDataLocalStorage(data.id + '_stations').map(obj => stations_data.push({'value':obj.id,'text':obj.name}));
+        } else {
+            data.stations.map(obj => stations_data.push({'value':obj.id,'text':obj.name}));
+            LocalStorageDataApi.setDataLocalStorage(data.id + '_stations',data.stations);
+        }
+        createCombo.built(stations_data,$('.js-select-stations'),'',createCombo.getData);
+    };
+
+    return {
+        getStationTemplate : getStationTemplate
+    };
+})();
+
 dataApp.fetchData('http://api.citybik.es/v2/networks',dataApp.getCities);
-dataApp.fetchData('http://api.citybik.es/v2/networks/bicimad',dataApp.getCities);
+dataApp.fetchData('http://api.citybik.es/v2/networks/norisbike-nurnberg',dataApp.getStations);
 
 var app = {
   /* isLoading: true,
@@ -227,7 +272,7 @@ var app = {
   cardTemplate: document.querySelector('.cardTemplate'),
   container: document.querySelector('.main'),
   addDialog: document.querySelector('.dialog-container'),
-  daysOfWeek: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] */,
+  daysOfWeek: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] */
   cities : []
 };
 
@@ -251,13 +296,6 @@ var app = {
     //Create combo cities
     var combo_cities = $('.js-target-combo');
     createCombo.built(app.cities,combo_cities,'',createCombo.getData);
-    //Add event combo cities
-    /* $(document).on('change','.js-target-combo select',function(e){
-        var this_combo = $(e.currentTarget);
-        console.log('COMMENT: ', this_combo.children(':selected').text(),'--',this_combo.val());
-    }); */
-    var element = '<div class="js-target-combo"></div>';
-    $('body').prepend(element);
   /*****************************************************************************
    *
    * Event listeners for UI elements
