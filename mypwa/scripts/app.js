@@ -1,3 +1,4 @@
+moment.locale('es');
 var createCombo = (function(){
     /**
      * author -- Greg
@@ -257,10 +258,10 @@ var templates = (function(){
         }
         var select_stations = $('.js-select-stations');
         select_stations.data('companyid',data.id);
-        createCombo.built(stations_data,select_stations,'',templates.getStationTemplate);
+        createCombo.built(stations_data,select_stations,'',templates.getStationData);
     };
 
-    var getStationTemplate = function(obj,text,value){
+    var getStationData = function(obj,text,value){
         var parent_select = obj.closest('.js-select-stations');
         var company_stations = parent_select.data('companyid') + '_stations';
         var station = LocalStorageDataApi.getDataLocalStorage(company_stations).find(
@@ -272,14 +273,31 @@ var templates = (function(){
             }
         );
         console.log('templates getData: ', obj,text,value,parent_select.data('companyid'),station);
-
+        getStationTemplate(station);
     };
-    var getData = function(text,value){
+    var getStationTemplate= function(station){
+        var time_update = moment(station.timestamp).format("YYYY-MM-DD HH:mm");
+        var template = `<div class="js-stations">
+                <header class="card-header">
+                    <p class="card-header-title">
+                    ${station.name}
+                    </p>
+                </header>
+                <div class="card-content">
+                    <div class="content">
+                        <div class="column">Free bikes: ${station.free_bikes}</div>
+                        <div class="column">Empty Slots: ${station.empty_slots}</div>
+                        <div class="column">Last Update: ${time_update}</div>
+                    </div>
+                </div>
+        </div>
+        `;
+        $('.js-data-station').html(template);
     };
 
     return {
         getCompanyTemplate : getCompanyTemplate,
-        getStationTemplate : getStationTemplate
+        getStationData : getStationData
     };
 })();
 

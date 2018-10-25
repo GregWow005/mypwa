@@ -18,6 +18,8 @@ var filesToCache = [
   '/',
   '/index.html',
   '/scripts/jquery-3.3.1.min.js',
+  '/scripts/moment.min.js',
+  '/scripts/moment-with-locales.min.js',
   '/scripts/app.js',
   '/styles/inline.css',
   '/styles/bulma.min.css',
