@@ -196,13 +196,13 @@ var dataApp = (function(){
     };
     var getCountries = function(data,type){
         console.log('Countries: ', data,type);
-        $.each( data.networks, function( index, obj ){
+        /* $.each( data.networks, function( index, obj ){
             if(obj.location.country === 'ES'){
                 LocalStorageDataApi.setDataLocalStorage(obj.location.country + '_' + obj.id ,obj);
                 //console.log('companny',obj.company,obj.location.city,obj.location.country,obj.name);
             }
-        });
-        $('body').append(type);
+        }); */
+        //$('body').append(type);
     };
     var getStations = function(data,type){
         console.log('Stations: ', data,type);
@@ -211,10 +211,10 @@ var dataApp = (function(){
     };
     
     return {
-        fetchData  : fetchData,
-        getCountries  : getCountries,
-        getStations: getStations
-    };
+        fetchData       :  fetchData,
+        getCountries    :  getCountries,
+        getStations     :  getStations
+        };
 
 })();
 
@@ -333,18 +333,10 @@ var templates = (function(){
     };
 })();
 
-dataApp.fetchData('http://api.citybik.es/v2/networks',dataApp.getCountries);
+//dataApp.fetchData('http://api.citybik.es/v2/networks',dataApp.getCountries);
 //dataApp.fetchData('http://api.citybik.es/v2/networks/norisbike-nurnberg',dataApp.getStations);
 
 var app = {
-  /* isLoading: true,
-  visibleCards: {},
-  selectedCountries: [],
-  spinner: document.querySelector('.loader'),
-  cardTemplate: document.querySelector('.cardTemplate'),
-  container: document.querySelector('.main'),
-  addDialog: document.querySelector('.dialog-container'),
-  daysOfWeek: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] */
   countries : []
 };
 
@@ -402,7 +394,7 @@ var app = {
 //fetchResource.fetchData('http://api.citybik.es/v2/networks/bicimad');
   
 
-var newFetch = (function(){
+/* var newFetch = (function(){
 	
 	var getData = function(url){
 		var promise = '';
@@ -459,7 +451,7 @@ var playJSON = function(data){
 var playBLOB = function(data){
 	console.log('data BLOB',data);
 };
-
+ */
 /* getJSON('http://placekitten.com/290/207',playBLOB);
 getJSON('http://api.citybik.es/v2/networks/bicimad',playJSON); */
 
