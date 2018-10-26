@@ -295,14 +295,46 @@ var templates = (function(){
         $('.js-data-station').html(template);
     };
 
+    var getCitiesData = function(obj,text,value){
+        var url = 'http://api.citybik.es/v2/networks';
+            // Replace ./data.json with your JSON feed
+        fetch(url).then(response => {
+        return response.json();
+        }).then(data => {
+            // Work with JSON data here
+            let cities = data.networks.filter(obj => obj.location.country === value);
+            console.log('CITY: ', cities);
+            var cities_data = [];
+            var city_data = {};
+
+            $.each(cities, function (index, obj) { 
+                city_data = {value: obj.id, text: obj.location.city};
+                cities_data.push(city_data);
+            });
+            createCombo.built(cities_data,$('.js-target-combo-cities'),'',templates.getCitiesTemplate);
+        }).catch(err => {
+            // Do something for an error here
+            console.log('Upsss! ', err);
+        });
+        console.log('getCitiesData: ', obj,text,value);
+    };
+    var getCitiesTemplate = function(obj,text,value){
+        //templates.getCompanyTemplate(cities_data);
+        var url = 'http://api.citybik.es/v2/networks/'+ value;
+        dataApp.fetchData(url,dataApp.getStations);
+        console.log('GETCITIESTEMPLATE: ', obj,text,value);  
+    };
+
     return {
         getCompanyTemplate : getCompanyTemplate,
-        getStationData : getStationData
+        getStationData     : getStationData,
+        getCitiesData      : getCitiesData,
+        getCitiesTemplate  : getCitiesTemplate
     };
 })();
 
 dataApp.fetchData('http://api.citybik.es/v2/networks',dataApp.getCountries);
-dataApp.fetchData('http://api.citybik.es/v2/networks/norisbike-nurnberg',dataApp.getStations);
+//dataApp.fetchData('http://api.citybik.es/v2/networks/norisbike-nurnberg',dataApp.getStations);
 
 var app = {
   /* isLoading: true,
@@ -323,7 +355,6 @@ var app = {
     if (app.countries) {
         app.countries = JSON.parse(app.countries);
         app.countries.forEach(function(city) {
-            console.log('city',city);
         });
     } else {
         app.countries = [
@@ -335,7 +366,7 @@ var app = {
     }
     //Create combo countries
     var combo_countries = $('.js-target-combo-countries');
-    createCombo.built(app.countries,combo_countries,'',createCombo.getData);
+    createCombo.built(app.countries,combo_countries,'',templates.getCitiesData);
   /*****************************************************************************
    *
    * Event listeners for UI elements
