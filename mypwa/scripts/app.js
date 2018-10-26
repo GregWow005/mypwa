@@ -125,7 +125,7 @@ var fetchResource = (function(){
 		.catch(logError);
     }
     
-    var  getCities = function(){
+    var  getNetworks = function(){
         var url = 'http://api.citybik.es/v2/networks';
             // Replace ./data.json with your JSON feed
         fetch(url).then(response => {
@@ -144,7 +144,7 @@ var fetchResource = (function(){
             console.log('Upsss! ', err);
         });
     };
-    getCities();
+    getNetworks();
 
     var  getCompanies = function(){
         var url = 'http://api.citybik.es/v2/networks/bicimad';
@@ -194,8 +194,8 @@ var dataApp = (function(){
             console.log('error: ', err);
         });
     };
-    var getCities = function(data,type){
-        console.log('Cities: ', data,type);
+    var getCountries = function(data,type){
+        console.log('Countries: ', data,type);
         $.each( data.networks, function( index, obj ){
             if(obj.location.country === 'ES'){
                 LocalStorageDataApi.setDataLocalStorage(obj.location.country + '_' + obj.id ,obj);
@@ -212,7 +212,7 @@ var dataApp = (function(){
     
     return {
         fetchData  : fetchData,
-        getCities  : getCities,
+        getCountries  : getCountries,
         getStations: getStations
     };
 
@@ -301,41 +301,41 @@ var templates = (function(){
     };
 })();
 
-dataApp.fetchData('http://api.citybik.es/v2/networks',dataApp.getCities);
+dataApp.fetchData('http://api.citybik.es/v2/networks',dataApp.getCountries);
 dataApp.fetchData('http://api.citybik.es/v2/networks/norisbike-nurnberg',dataApp.getStations);
 
 var app = {
   /* isLoading: true,
   visibleCards: {},
-  selectedCities: [],
+  selectedCountries: [],
   spinner: document.querySelector('.loader'),
   cardTemplate: document.querySelector('.cardTemplate'),
   container: document.querySelector('.main'),
   addDialog: document.querySelector('.dialog-container'),
   daysOfWeek: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] */
-  cities : []
+  countries : []
 };
 
 //Document Ready
 (function() {
   'use strict';
-    app.cities = localStorage.cities;
-    if (app.cities) {
-        app.cities = JSON.parse(app.cities);
-        app.cities.forEach(function(city) {
+    app.countries = localStorage.countries;
+    if (app.countries) {
+        app.countries = JSON.parse(app.countries);
+        app.countries.forEach(function(city) {
             console.log('city',city);
         });
     } else {
-        app.cities = [
+        app.countries = [
             {value: 'ES', text:'ESPAÑA'},
             {value: 'DE', text:'ALEMANIA'},
             {value: 'FR', text: 'FRANCIA'}
         ];
-        LocalStorageDataApi.setDataLocalStorage('cities',app.cities);
+        LocalStorageDataApi.setDataLocalStorage('countries',app.countries);
     }
-    //Create combo cities
-    var combo_cities = $('.js-target-combo');
-    createCombo.built(app.cities,combo_cities,'',createCombo.getData);
+    //Create combo countries
+    var combo_countries = $('.js-target-combo-countries');
+    createCombo.built(app.countries,combo_countries,'',createCombo.getData);
   /*****************************************************************************
    *
    * Event listeners for UI elements
@@ -437,8 +437,16 @@ getJSON('http://api.citybik.es/v2/networks/bicimad',playJSON); */
 
 
 /**
+ * 
+ * Hacerlo que funcione cómo sabes
+ * Usar nuevas tecnologías y adaptarlos
+ * Optimizarlo
+ * 
+ * 
  * SECCIONES
- *  - Select en el header con las ciudades
+ *  - Select de paises
+ *      - Change select -> devuelve listado de estaciones en el pais
+ *  - Select Ciudades
  *  - Change Select
  *      - Template_Ficha -> Ficha con cada uno de las estaciones de esa ciudad
  *          - Datos
@@ -460,7 +468,7 @@ getJSON('http://api.citybik.es/v2/networks/bicimad',playJSON); */
  * 
  *  Pattern
  *      Cache then Network
- *      Cities
+ *      Countries
  *           - De momento estarán harcodeadas. Solo tres ciudades como muestra
  *      Stations
  *          - Actualizaciones de empty_slots, free_bykes y timestamp
