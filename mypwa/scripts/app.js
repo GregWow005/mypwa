@@ -296,7 +296,46 @@ var templates = (function(){
     };
 
     var getCitiesData = function(obj,text,value){
-        var url = 'http://api.citybik.es/v2/networks';
+        var url = 'http://api.citybik.es/v2/networks/krm-konstancinski-konstancin-jeziorna';
+        var dataCacheName = 'weatherData-v1';
+        caches.open(dataCacheName).then(function(cache) {
+            cache.match(url).then(function(response) {
+                if(response){
+                console.log('CACHE: ');
+                return response.json().then(data => { 
+                    console.log('data.networks: ', data);
+                });
+
+                } else {
+                    console.log('NETWORK: ');
+                    fetch(url).then(function(response){
+                        cache.put(url, response.clone());
+                        return response.json();
+                    }).then(data => { 
+                        console.log('data.networks: ', data);
+                    });
+                }
+            });
+            /* cache.match(url).then(function(response) {
+                return response.json() || fetch(url).then(function(response){
+                    cache.put(url, response.clone());
+                    return response.json();
+                  }).then(data => { 
+                      console.log('data.networks: ', data);
+                  });
+              }); */
+        });
+
+
+        var promise = caches.match(url).then(function(response) {
+            console.log('RESPONSE: ', response);
+            return response || fetch(url);
+        });
+        promise.then(function(response){
+            return response.json();
+        }).then( data => { 
+            console.log('data.networks: ', data.networks); 
+        });
             // Replace ./data.json with your JSON feed
         fetch(url).then(response => {
         return response.json();
