@@ -63,110 +63,6 @@ var LocalStorageDataApi = (function(){
     
 })();
 
-var fetchResource = (function(){
-	function logResult(result) {
-		console.log(result);
-	}
-	
-	function logError(error) {
-		console.log('Looks like there was a problem: \n', error);
-	}
-	
-	function validateResponse(response) {
-	if (!response.ok) {
-		throw Error(response.statusText);
-		}
-		return response;
-	}
-	
-	function readResponseAsJSON(response) {
-		var response_data = response.clone();
-		var promise = response.blob();
-		promise.then(function(data) {
-			switch (data.type) {
-				case "image/jpeg":
-					getBLOB(response_data.blob());
-					break;
-				case "application/json":
-					getJSON(response_data.json());
-					break;
-			
-				default:
-					break;
-			}
-		  }, function(err) {
-			console.log("Failed!", err); // Error: "It broke"
-		  });
-	}
-
-	var getBLOB = function(response){
-		response.then(function(data) {
-			console.log("Success BLOB!", data); // "Stuff worked!"
-		  }, function(err) {
-			console.log("Failed!", err); // Error: "It broke"
-		  });
-	};
-
-	var getJSON = function(response){
-		return response;
-		/* response.then(function(data) {
-			console.log("Success JSON!", data); // "Stuff worked!"
-			window.data = data;
-			return window.data;
-		}, function(err) {
-			console.log("Failed!", err); // Error: "It broke"
-		}); */
-	};
-	
-	function fetchData(pathToResource) {
-		return fetch(pathToResource) // 1
-		.then(validateResponse) // 2
-		.then(readResponseAsJSON) // 3
-		.catch(logError);
-    }
-    
-    var  getNetworks = function(){
-        var url = 'http://api.citybik.es/v2/networks';
-            // Replace ./data.json with your JSON feed
-        fetch(url).then(response => {
-        return response.json();
-        }).then(data => {
-            // Work with JSON data here
-            $.each( data.networks, function( index, obj ){
-                if(obj.location.country === 'ES'){
-                    LocalStorageDataApi.setDataLocalStorage(obj.location.country + '_' + obj.id ,obj);
-                    //console.log('companny',obj.company,obj.location.city,obj.location.country,obj.name);
-                }
-            });
-            
-        }).catch(err => {
-            // Do something for an error here
-            console.log('Upsss! ', err);
-        });
-    };
-    getNetworks();
-
-    var  getCompanies = function(){
-        var url = 'http://api.citybik.es/v2/networks/bicimad';
-            // Replace ./data.json with your JSON feed
-        fetch(url).then(response => {
-        return response.json();
-        }).then(data => {
-            // Work with JSON data here
-            var obj = data.network;
-            console.log('companny',obj.company,obj.location.city,obj.location.country,obj.name);
-        }).catch(err => {
-            // Do something for an error here
-            console.error('Upsss! ', err);
-        });
-    };
-    getCompanies();
-
-	return {
-		fetchData : fetchData,
-	};
-})();
-
 var dataApp = (function(){
     var fetchData = function(url,fn){
         var networkDataReceived = false;
@@ -219,18 +115,30 @@ var dataApp = (function(){
 })();
 
 var dataAppDDBB = (function(){
-    var getCountries = function(countries){
-        console.log('dataAppDDBB Countries: ', countries);
+    var getCountries = function(dbPromise,countries){
+        countries_data = [
+            {value: "DE", text: "ALEMANIA"},
+            {value: "ES", text: "ESPAÑA"},
+            {value: "FR", text: "FRANCIA"}
+        ];
+        
+        if(countries){
+            // Reset countries data
+            countries_data = []; 
+            $.each(countries, function (index, obj) { 
+                country_data = {value: obj.code, text: obj.name};
+                countries_data.push(country_data);
+            });
+        }
         var combo_countries = $('.js-target-combo-countries');
-        var countries_data = []; 
-        $.each(countries, function (index, obj) { 
-            country_data = {value: obj.code, text: obj.name};
-            countries_data.push(country_data);
-        });
         createCombo.built(countries_data,combo_countries,'',templates.getCitiesData);
     };
+    var getCities = function(cities){
+        console.log('CITIES: ', cities);
+    };
     return {
-        getCountries : getCountries
+        getCountries : getCountries,
+        getCities : getCities
     };
 })();
 var templates = (function(){
@@ -314,29 +222,19 @@ var templates = (function(){
     };
 
     var getCitiesData = function(obj,text,value){
+
+ /*     - Evento change sobre el combo de los paises.
+ *      - Necesito los datos de las ciudades del pais seleccionado.
+ *          - Cargarlos via API o via BBDD
+ *          - ¿Existen en la BBDD?
+ *               - Cargar de la BBDD
+ *               - Cargar via API 
+ * 
+ * createCombo.built(cities_data,$('.js-target-combo-cities'),'',templates.getCitiesTemplate);
+ * 
+ * */
+        //transactions.getItem(dbPromise,'cities',value,dataAppDDBB.getCities);
         var url = 'http://api.citybik.es/v2/networks';
-        /* var dataCacheName = 'weatherData-v1';
-        caches.open(dataCacheName).then(function(cache) {
-            cache.match(url).then(function(response) {
-                if(response){
-                console.log('CACHE: ');
-                return response.json().then(data => { 
-                    console.log('data.networks: ', data);
-                });
-
-                } else {
-                    console.log('NETWORK: ');
-                    fetch(url).then(function(response){
-                        cache.put(url, response.clone());
-                        return response.json();
-                    }).then(data => { 
-                        console.log('data.networks: ', data);
-                    });
-                }
-            });
-        }); */
-
-
         var promise = caches.match(url).then(function(response) {
             console.log('RESPONSE: ', response);
             return response || fetch(url);
@@ -382,10 +280,6 @@ var templates = (function(){
     };
 })();
 
-//dataApp.fetchData('http://api.citybik.es/v2/networks',dataApp.getCountries);
-//dataApp.fetchData('http://api.citybik.es/v2/networks/norisbike-nurnberg',dataApp.getStations);
-
-
 var transactions = (function(){
     var createCountries = function(dbPromise){
         dbPromise.then(function(db) {
@@ -415,24 +309,46 @@ var transactions = (function(){
             .objectStore(obj_store).getAll();
         }).then(allObjs => 
             { 
-                fn(allObjs);
-                //fn(allObjs);
-                //console.log('Items: ',allObjs);
+                fn(dbPromise,allObjs);
             }
         ); 
     };
 
-    var getItem = function(dbPromise,obj_store,index){
+    var getItem = function(dbPromise,obj_store,index,fn){
         dbPromise.then(db => {
             return db.transaction(obj_store)
-              .objectStore(obj_store).get(index);
-          }).then(obj => console.log('item: ',obj));
+                .objectStore(obj_store).get(index);
+        }).then(obj => {
+                fn(obj);
+                //console.log('item: ',obj);
+            }
+        );
     };
 
+    var getCursor = function(dbPromise,obj_store,index){
+        dbPromise.then(function(db) {
+            var tx = db.transaction(obj_store, 'readonly');
+            var store = tx.objectStore(obj_store);
+            return store.openCursor();
+        }).then(function logItems(cursor) {
+            if (!cursor) {
+              return;
+            }
+            console.log('Cursored at:', cursor.key);
+            for (var field in cursor.value) {
+              console.log('CURSOR: ',field,cursor.value[field]);
+            }
+            return cursor.continue().then(logItems);
+        }).then(function() {
+            console.log('Done cursoring');
+        });
+
+    };
     return {
         createCountries: createCountries,
         getAllitems    : getAllitems,
-        getItem        : getItem
+        getItem        : getItem,
+        getCursor      : getCursor
     };
 })();
 
@@ -445,40 +361,26 @@ var app = {
 //Document Ready
 (function() {
   'use strict';
-    app.countries = localStorage.countries;
-    if (app.countries) {
-        app.countries = JSON.parse(app.countries);
-        app.countries.forEach(function(city) {
-        });
-    } else {
-        app.countries = [
-            {value: 'ES', text:'ESPAÑA'},
-            {value: 'DE', text:'ALEMANIA'},
-            {value: 'FR', text: 'FRANCIA'}
-        ];
-        LocalStorageDataApi.setDataLocalStorage('countries',app.countries);
-    }
-
     if (!('indexedDB' in window)) {
         console.log('This browser doesn\'t support IndexedDB');
         return;
     }
-    
     var dbPromise = idb.open('test-pwa', 1, function(upgradeDb) {
         console.log('making a new object store');
         if (!upgradeDb.objectStoreNames.contains('countries')) {
             var countries = upgradeDb.createObjectStore('countries',{keyPath: 'code'});
-            countries.createIndex('code', 'code', {unique: true});
+            countries.createIndex('code', 'code', { unique : true});
+            countries.createIndex('name', 'name', { multiEntry : true});
         }
-        //createCountries(dbPromise);
+        //transactions.createCountries(dbPromise);
     });
+
+    //transactions.getItem(dbPromise,'countries','ES',console.log);
+    //transactions.getCursor(dbPromise,'countries','ESPAÑA');
     
+    //Get Coutries 
     transactions.getAllitems(dbPromise,'countries',dataAppDDBB.getCountries);
     
-    
-    //Create combo countries
-    //var combo_countries = $('.js-target-combo-countries');
-    //createCombo.built(app.countries,combo_countries,'',templates.getCitiesData);
 	// TODO add service worker code here
 	if ('serviceWorker' in navigator) {
 		navigator.serviceWorker
@@ -491,77 +393,29 @@ var app = {
 
 
 
-
-//fetchResource.fetchData('http://placekitten.com/290/207');
-//fetchResource.fetchData('http://api.citybik.es/v2/networks/bicimad');
-  
-
-/* var newFetch = (function(){
-	
-	var getData = function(url){
-		var promise = '';
-		return fetch(url).then(response => {
-			//console.log("Success JSON!", response); // "Stuff worked!"
-			var result = '';
-			var response_clone = response.clone();
-			promise  = response.blob();
-			console.log(promise);
-			promise.then(function(data) {
-				console.log(data.type);
-				switch (data.type) {
-					case "image/jpeg":
-						result = response_clone.blob();
-						break;
-					case "application/json":
-						result = response_clone.json();
-						break;
-					case "text/html":
-						result = response_clone.json();
-						break;
-						
-					default:
-						break;
-				}
-				return result;
-			  }, function(err) {
-				console.log("Failed!", err); // Error: "It broke"
-			  });
-		  }).then(data => {
-			// Work with JSON data here
-			return data;
-		  }).catch(err => {
-			// Do something for an error here
-		  });
-	};
-
-	return {
-		getData : getData
-	};
-})();
-var getJSON = function(url,fn){
-	newFetch.getData(url).then(function(data) {
-		console.log('this' ,data)
-		fn(data);
-	}, function(err) {
-		console.log("Failed!", err); // Error: "It broke"
-	});
-};
-var playJSON = function(data){
-	console.log('data JSON',data);
-};
-
-var playBLOB = function(data){
-	console.log('data BLOB',data);
-};
- */
-/* getJSON('http://placekitten.com/290/207',playBLOB);
-getJSON('http://api.citybik.es/v2/networks/bicimad',playJSON); */
-
-
-
-
-
 /**
+ * 
+ * * 
+ * Al cargar la página
+ *   - Necesito los datos de los paises.
+ *       - Cargarlos via API o cargarlos via BBDD
+ *          - Es este caso están harcodeados como ejemplo y guardados en la BBDD 
+ *   - Evento change sobre el combo de los paises.
+ *      - Necesito los datos de las ciudades del pais seleccionado.
+ *          - Cargarlos via API o via BBDD
+ *          - ¿Existen en la BBDD?
+ *               - Cargar de la BBDD
+ *               - Cargar via API
+ *  - Evento change sobre el combo ciudades
+ *      - Necesito los datos de las estaciones de la ciudad seleccionada
+ *          - Cargarlos via API o via BBDD 
+ *          - ¿Existen en la BBDD?
+ *               - Cargar de la BBDD
+ *               - Cargar via API
+ * 
+ * 
+ * 
+ * 
  * 
  * Hacerlo que funcione cómo sabes
  * Usar nuevas tecnologías y adaptarlos
@@ -646,17 +500,7 @@ getJSON('http://api.citybik.es/v2/networks/bicimad',playJSON); */
  * 
  * 
  * 
- * 
- * Al cargar la página
- *   - Necesito los datos de los paises.
- *       - Cargarlos via API o cargarlos via BBDD
- *          - Es este caso están harcodeados como ejemplo y guardados en la BBDD 
- *   - Evento change sobre el combo de los paises.
- *      - Necesito los datos de las ciudades del pais seleccionado.
- *          - Cargarlos via API o via BBDD
- *  - Evento change sobre el combo ciudades
- *      - Necesito los datos de las estaciones de la ciudad seleccionada
- *          - Cargarlos via API o via BBDD 
+ 
  * 
  */
 
