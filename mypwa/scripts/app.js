@@ -218,6 +218,21 @@ var dataApp = (function(){
 
 })();
 
+var dataAppDDBB = (function(){
+    var getCountries = function(countries){
+        console.log('dataAppDDBB Countries: ', countries);
+        var combo_countries = $('.js-target-combo-countries');
+        var countries_data = []; 
+        $.each(countries, function (index, obj) { 
+            country_data = {value: obj.code, text: obj.name};
+            countries_data.push(country_data);
+        });
+        createCombo.built(countries_data,combo_countries,'',templates.getCitiesData);
+    };
+    return {
+        getCountries : getCountries
+    };
+})();
 var templates = (function(){
     var getCompanyTemplate = function(result){
         var data = result.network;
@@ -277,6 +292,8 @@ var templates = (function(){
     };
     var getStationTemplate= function(station){
         var time_update = moment(station.timestamp).format("YYYY-MM-DD HH:mm");
+        var address = station.extra.address || station.extra.description || '-';
+        var status = station.extra.status || station.extra.status.message || 'No Data';
         var template = `<div class="js-stations">
                 <header class="card-header">
                     <p class="card-header-title">
@@ -285,6 +302,7 @@ var templates = (function(){
                 </header>
                 <div class="card-content">
                     <div class="content">
+                        <div class="column">Addres: ${address + ' ( ' + status +' )'}</div>
                         <div class="column">Free bikes: ${station.free_bikes}</div>
                         <div class="column">Empty Slots: ${station.empty_slots}</div>
                         <div class="column">Last Update: ${time_update}</div>
@@ -296,8 +314,8 @@ var templates = (function(){
     };
 
     var getCitiesData = function(obj,text,value){
-        var url = 'http://api.citybik.es/v2/networks/krm-konstancinski-konstancin-jeziorna';
-        var dataCacheName = 'weatherData-v1';
+        var url = 'http://api.citybik.es/v2/networks';
+        /* var dataCacheName = 'weatherData-v1';
         caches.open(dataCacheName).then(function(cache) {
             cache.match(url).then(function(response) {
                 if(response){
@@ -316,15 +334,7 @@ var templates = (function(){
                     });
                 }
             });
-            /* cache.match(url).then(function(response) {
-                return response.json() || fetch(url).then(function(response){
-                    cache.put(url, response.clone());
-                    return response.json();
-                  }).then(data => { 
-                      console.log('data.networks: ', data);
-                  });
-              }); */
-        });
+        }); */
 
 
         var promise = caches.match(url).then(function(response) {
@@ -375,6 +385,59 @@ var templates = (function(){
 //dataApp.fetchData('http://api.citybik.es/v2/networks',dataApp.getCountries);
 //dataApp.fetchData('http://api.citybik.es/v2/networks/norisbike-nurnberg',dataApp.getStations);
 
+
+var transactions = (function(){
+    var createCountries = function(dbPromise){
+        dbPromise.then(function(db) {
+            var tx = db.transaction('countries', 'readwrite');
+            var store = tx.objectStore('countries');
+            var items = [
+                {code: 'ES', name:'ESPAÑA'},
+                {code: 'DE', name:'ALEMANIA'},
+                {code: 'FR', name: 'FRANCIA'}
+            ];
+            return Promise.all(items.map(function(item) {
+                console.log('Adding item: ', item);
+                return store.add(item);
+                })
+            ).catch(function(e) {
+                tx.abort();
+                console.log(e);
+            }).then(function() {
+                console.log('All items added successfully!');
+            });
+        });
+    };
+
+    var getAllitems = function(dbPromise,obj_store,fn){
+        dbPromise.then(db => {
+            return db.transaction(obj_store)
+            .objectStore(obj_store).getAll();
+        }).then(allObjs => 
+            { 
+                fn(allObjs);
+                //fn(allObjs);
+                //console.log('Items: ',allObjs);
+            }
+        ); 
+    };
+
+    var getItem = function(dbPromise,obj_store,index){
+        dbPromise.then(db => {
+            return db.transaction(obj_store)
+              .objectStore(obj_store).get(index);
+          }).then(obj => console.log('item: ',obj));
+    };
+
+    return {
+        createCountries: createCountries,
+        getAllitems    : getAllitems,
+        getItem        : getItem
+    };
+})();
+
+
+
 var app = {
   countries : []
 };
@@ -395,27 +458,27 @@ var app = {
         ];
         LocalStorageDataApi.setDataLocalStorage('countries',app.countries);
     }
-    //Create combo countries
-    var combo_countries = $('.js-target-combo-countries');
-    createCombo.built(app.countries,combo_countries,'',templates.getCitiesData);
-  /*****************************************************************************
-   *
-   * Event listeners for UI elements
-   *
-   ****************************************************************************/
 
-  /* document.getElementById('butRefresh').addEventListener('click', function() {
+    if (!('indexedDB' in window)) {
+        console.log('This browser doesn\'t support IndexedDB');
+        return;
+    }
     
-}); */
-
-
-  /*****************************************************************************
-   *
-   * Methods to update/refresh the UI
-   *
-   ****************************************************************************/
-   
-
+    var dbPromise = idb.open('test-pwa', 1, function(upgradeDb) {
+        console.log('making a new object store');
+        if (!upgradeDb.objectStoreNames.contains('countries')) {
+            var countries = upgradeDb.createObjectStore('countries',{keyPath: 'code'});
+            countries.createIndex('code', 'code', {unique: true});
+        }
+        //createCountries(dbPromise);
+    });
+    
+    transactions.getAllitems(dbPromise,'countries',dataAppDDBB.getCountries);
+    
+    
+    //Create combo countries
+    //var combo_countries = $('.js-target-combo-countries');
+    //createCombo.built(app.countries,combo_countries,'',templates.getCitiesData);
 	// TODO add service worker code here
 	if ('serviceWorker' in navigator) {
 		navigator.serviceWorker
@@ -504,14 +567,59 @@ getJSON('http://api.citybik.es/v2/networks/bicimad',playJSON); */
  * Usar nuevas tecnologías y adaptarlos
  * Optimizarlo
  * 
+ * Evento Activate del Service Worker
+ * - Crear base de datos o abrirla si ya existe
+ *      - Obtener datos de la base de datos o de la red 
+ * 
+ * 
+ * BBDD
+ * 
+ * Countries
+ *          - Ej:
+ *              {
+ *                  code: '', -- Keypath
+ *                  name     : '',
+ *              }
+ * Cities
+ *   - Por paises
+ *       - keypath -> Country_code -- lo saco de la API
+ *          - Ej:
+ *              {
+ *                  company     : '',
+ *                  href        : '',
+ *                  id          : '',
+ *                  city        : '',
+ *                  country_code: '', -- Keypath
+ *                  country     : '',
+ *                  name        : '',
+ *              }
+ * Stations
+ *      - Keypath -> city_code -- Lo saco de la API
+ *           - Ej:
+ *              {
+ *                  empty_slots: '',
+ *                  free_bikes : '',
+ *                  timestam   : '',
+ *                  id         : '',
+ *                  latitude   : '',
+ *                  longitude  : '',
+ *                  addres     : '',
+ *                  status     : '',
+ *                  city_code  : '' --> Keypath
+ * 
+ *              }
+ * 
  * 
  * SECCIONES
  *  - Select de paises
+ *      - BBDD -> Listado de paises
  *      - Change select -> devuelve listado de estaciones en el pais
  *  - Select Ciudades
  *  - Change Select
+ *      - BBDD -> Listado de ciudades
  *      - Template_Ficha -> Ficha con cada uno de las estaciones de esa ciudad
  *          - Datos
+ *              - BBDD
  *              - Company
  *              - location.city
  *              - location.country
@@ -535,6 +643,21 @@ getJSON('http://api.citybik.es/v2/networks/bicimad',playJSON); */
  *      Stations
  *          - Actualizaciones de empty_slots, free_bykes y timestamp
  *    
+ * 
+ * 
+ * 
+ * 
+ * Al cargar la página
+ *   - Necesito los datos de los paises.
+ *       - Cargarlos via API o cargarlos via BBDD
+ *          - Es este caso están harcodeados como ejemplo y guardados en la BBDD 
+ *   - Evento change sobre el combo de los paises.
+ *      - Necesito los datos de las ciudades del pais seleccionado.
+ *          - Cargarlos via API o via BBDD
+ *  - Evento change sobre el combo ciudades
+ *      - Necesito los datos de las estaciones de la ciudad seleccionada
+ *          - Cargarlos via API o via BBDD 
+ * 
  */
 
 
