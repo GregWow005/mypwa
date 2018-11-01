@@ -115,7 +115,7 @@ var dataApp = (function(){
 })();
 
 var dataAppDDBB = (function(){
-    var getCountries = function(dbPromise,countries){
+    var getCountries = function(countries){
         countries_data = [
             {value: "DE", text: "ALEMANIA"},
             {value: "ES", text: "ESPAÑA"},
@@ -143,7 +143,7 @@ var dataAppDDBB = (function(){
 })();
 var templates = (function(){
     var getCompanyTemplate = function(result){
-        var data = result.network;
+		var data = result.networks;
         console.log('getCompanyTemplate',data);
         var template = `<div class="card">
         
@@ -233,8 +233,9 @@ var templates = (function(){
  * createCombo.built(cities_data,$('.js-target-combo-cities'),'',templates.getCitiesTemplate);
  * 
  * */
+		transactions.getItem(transactions.dbPromise,'cities',value);
         //transactions.getItem(dbPromise,'cities',value,dataAppDDBB.getCities);
-        var url = 'http://api.citybik.es/v2/networks';
+        /* var url = 'http://api.citybik.es/v2/networks';
         var promise = caches.match(url).then(function(response) {
             console.log('RESPONSE: ', response);
             return response || fetch(url);
@@ -262,7 +263,7 @@ var templates = (function(){
         }).catch(err => {
             // Do something for an error here
             console.log('Upsss! ', err);
-        });
+        }); */
         console.log('getCitiesData: ', obj,text,value);
     };
     var getCitiesTemplate = function(obj,text,value){
@@ -281,6 +282,24 @@ var templates = (function(){
 })();
 
 var transactions = (function(){
+	'use strict';
+	if (!('indexedDB' in window)) {
+        console.log('This browser doesn\'t support IndexedDB');
+        return;
+    }
+    var dbPromise = idb.open('test-pwa', 1, function(upgradeDb) {
+        console.log('Create object store countries');
+        if (!upgradeDb.objectStoreNames.contains('countries')) {
+            var countries = upgradeDb.createObjectStore('countries',{keyPath: 'code'});
+            countries.createIndex('code', 'code', { unique : true});
+            countries.createIndex('name', 'name', { multiEntry : true});
+		}
+		console.log('Create object store cities');
+		if (!upgradeDb.objectStoreNames.contains('cities')) {
+			var cities = upgradeDb.createObjectStore('cities',{keyPath: 'code'});
+			cities.createIndex('code', 'code', { unique : true});
+		}
+    });
     var createCountries = function(dbPromise){
         dbPromise.then(function(db) {
             var tx = db.transaction('countries', 'readwrite');
@@ -301,7 +320,25 @@ var transactions = (function(){
                 console.log('All items added successfully!');
             });
         });
+	};
+	
+	var createCities = function(dbPromise,item,fn){
+		console.log('MSG',item);
+        dbPromise.then(function(db) {
+            var tx = db.transaction('cities', 'readwrite');
+            var store = tx.objectStore('cities');
+			store.add(item);
+			createCombo.built(item.value,$('.js-target-combo-cities'),'',templates.getCitiesTemplate);
+			return tx.complete;
+        }).then(function(item) {
+			console.log('All items added successfully!',item);
+			fn('OK!')
+        });
     };
+
+	var ok = function(msg){
+		console.log('msg',msg);
+	};
 
     var getAllitems = function(dbPromise,obj_store,fn){
         dbPromise.then(db => {
@@ -309,7 +346,7 @@ var transactions = (function(){
             .objectStore(obj_store).getAll();
         }).then(allObjs => 
             { 
-                fn(dbPromise,allObjs);
+                fn(allObjs);
             }
         ); 
     };
@@ -319,10 +356,60 @@ var transactions = (function(){
             return db.transaction(obj_store)
                 .objectStore(obj_store).get(index);
         }).then(obj => {
-                fn(obj);
-                //console.log('item: ',obj);
+                //fn(obj);
+				if(typeof obj !== 'undefined'){
+					console.log('item: ',obj);
+					createCombo.built(obj.value,$('.js-target-combo-cities'),'',templates.getCitiesTemplate);
+				} else {
+					/**
+					 * No existe los datos en la BBDD asi que acusimos a la API
+					 * Obtenmos datos de la API
+					 * Guardamos datos en base de datos
+					 * Pintamos template
+					 * 
+					 * Estructura en la base de datos - JSON 
+					 * 	Clave - Código del pais
+					 * 	Valor - Array de JSON con los datos de las ciudades de ese pais
+					 * 	 Ej.:´
+					 *  { 'ES' : [{},{}}}
+					 * 
+					 * TODO - EXPERT - Comprobar que todas las ciudades en la BBDD son las mismas que las que 
+					 * existe en la API. Verificar las actualizaciones
+					 * 	 
+					 * 	
+					 * 
+					 * 
+					 */
+					var url = 'http://api.citybik.es/v2/networks/';
+					fetch(url).then(response => {
+						return response.json();
+						}).then(data => {
+							// Work with JSON data here
+							let cities = data.networks.filter(obj => obj.location.country === index);
+							var cities_data = [];
+							var city_data = {};
+							
+							$.each(cities, function (index, obj) { 
+								city_data = {index: obj.id, text: obj.location.city};
+								cities_data.push(city_data);
+							});
+							var cities_bbdd = {
+								'code' : index,
+								'value' :cities_data
+							};
+							// Guardamos en la base de datos las ciudades
+							console.log('cities_bbdd: ', cities_bbdd);
+							transactions.createCities(transactions.dbPromise,cities_bbdd,transactions.ok);
+						}).catch(err => {
+							// Do something for an error here
+							console.log('Upsss! ', err);
+						});
+				}
             }
-        );
+        ).catch(error => {
+			
+			console.log('error: ',error);
+		});
     };
 
     var getCursor = function(dbPromise,obj_store,index){
@@ -345,41 +432,27 @@ var transactions = (function(){
 
     };
     return {
-        createCountries: createCountries,
-        getAllitems    : getAllitems,
-        getItem        : getItem,
-        getCursor      : getCursor
+		dbPromise 		: dbPromise,
+        createCountries	: createCountries,
+        getAllitems    	: getAllitems,
+        getItem        	: getItem,
+		getCursor      	: getCursor,
+		createCities 	: createCities,
+		ok : ok
     };
 })();
 
 
-
-var app = {
-  countries : []
-};
-
 //Document Ready
 (function() {
   'use strict';
-    if (!('indexedDB' in window)) {
-        console.log('This browser doesn\'t support IndexedDB');
-        return;
-    }
-    var dbPromise = idb.open('test-pwa', 1, function(upgradeDb) {
-        console.log('making a new object store');
-        if (!upgradeDb.objectStoreNames.contains('countries')) {
-            var countries = upgradeDb.createObjectStore('countries',{keyPath: 'code'});
-            countries.createIndex('code', 'code', { unique : true});
-            countries.createIndex('name', 'name', { multiEntry : true});
-        }
-        //transactions.createCountries(dbPromise);
-    });
-
+    
+	transactions.createCountries(transactions.dbPromise);
     //transactions.getItem(dbPromise,'countries','ES',console.log);
     //transactions.getCursor(dbPromise,'countries','ESPAÑA');
     
     //Get Coutries 
-    transactions.getAllitems(dbPromise,'countries',dataAppDDBB.getCountries);
+    transactions.getAllitems(transactions.dbPromise,'countries',dataAppDDBB.getCountries);
     
 	// TODO add service worker code here
 	if ('serviceWorker' in navigator) {
