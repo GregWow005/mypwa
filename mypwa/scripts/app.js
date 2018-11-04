@@ -19,7 +19,7 @@ var createCombo = (function(){
         if(dataCombo === null){
             select_element.append($('<option>Seleccione valor</option>').prop('disabled',true));
         } else {
-            select_element.append($('<option>Seleccione valor</option>'));
+			select_element.append($('<option>Seleccione valor</option>'));
             $.each(dataCombo, function (id, option) {
                 var selected = '';
                 //console.log(' TRIGGER: ', parseInt(value) === option.id, value,option.id,option.value);
@@ -114,6 +114,71 @@ var dataApp = (function(){
 
 })();
 
+var fetchDataApp = (function(){
+	var getStations = function(city_id,result){
+		/**
+		 * No existe los datos en la BBDD asi que acusimos a la API
+		 * Obtenmos datos de la API
+		 * Guardamos datos en base de datos
+		 * Pintamos template
+		 * 
+		 * Estructura en la base de datos - JSON 
+		 * 	Clave - Código del pais
+		 * 	Valor - Array de JSON con los datos de las ciudades de ese pais
+		 * 	 Ej.:´
+		 *  { 'ES' : [{},{}}}
+		 * 
+		 * TODO - EXPERT - Comprobar que todas las ciudades en la BBDD son las mismas que las que 
+		 * existe en la API. Verificar las actualizaciones
+		 * 	 
+		 * 	
+		 * 
+		 * 
+		 */
+		if(typeof result !== 'undefined'){
+			console.log('result: ',result);
+			templates.getCompanyTemplate(result);
+			//Combo.built(obj.data,$('.js-target-combo-stations'),'',dataAppDDBB.getStations);
+		} else {
+			var url = 'http://api.citybik.es/v2/networks/' + city_id;
+			fetch(url).then(response => {
+				return response.json();
+			}).then(data => {
+					// Work with JSON data here
+					let stations = data.network.stations;
+					let new_stations = stations.map((obj, i, stations) => {
+						return {
+						  'value'			: obj.id,
+						  'text'			: obj.name,
+						  'empty_slots'		: obj.empty_slots,
+						  'free_bikes'		: obj.free_bikes,
+						  'latitude'		: obj.latitude,
+						  'longitude'		: obj.longitude,
+						  'timestamp'		: obj.timestamp,
+						  'extra'			: obj.extra
+						};
+					  });
+					var stations_bbdd = {
+						'company'		: data.network.company,
+						'name'			: data.network.name,
+						'code_city' 	: city_id,
+						'data' 			: new_stations,
+					};
+					// Guardamos en la base de datos las ciudades
+					console.log('stations_bbdd: ', stations_bbdd);
+					transactions.createStations(transactions.dbPromise,stations_bbdd,transactions.ok);
+			}).catch(err => {
+				// Do something for an error here
+				console.log('Upsss! ', err);
+			});
+		}
+	};
+	return {
+		getStations : getStations
+	};
+})();
+
+
 var dataAppDDBB = (function(){
     var getCountries = function(countries){
         countries_data = [
@@ -133,18 +198,45 @@ var dataAppDDBB = (function(){
         var combo_countries = $('.js-target-combo-countries');
         createCombo.built(countries_data,combo_countries,'',templates.getCitiesData);
     };
-    var getCities = function(cities){
-        console.log('CITIES: ', cities);
+    var getStations = function(obj,text,value){
+        //templates.getCompanyTemplate(cities_data);
+        var url = 'http://api.citybik.es/v2/networks/'+ value;
+		//dataApp.fetchData(url,dataApp.getStations);
+		
+		/**
+		 * No existe los datos en la BBDD asi que acusimos a la API
+		 * Obtenmos datos de la API
+		 * Guardamos datos en base de datos
+		 * Pintamos template
+		 * 
+		 * Estructura en la base de datos - JSON 
+		 * 	Clave - Código del pais
+		 * 	Valor - Array de JSON con los datos de las ciudades de ese pais
+		 * 	 Ej.:´
+		 *  { 'ES' : [{},{}}}
+		 * 
+		 * TODO - EXPERT - Comprobar que todas las ciudades en la BBDD son las mismas que las que 
+		 * existe en la API. Verificar las actualizaciones
+		 * 	 
+		 * 	
+		 * Crear funcion para obtener los datos
+		 * Crear funcion que pinte los datos
+		 * 
+		 * 
+		 */
+		//dbPromise,obj_store,index,fn
+		transactions.getItemDos(transactions.dbPromise,'stations',value,fetchDataApp.getStations);
+        console.log('GETStationsTEMPLATE: ', value);  
     };
     return {
         getCountries : getCountries,
-        getCities : getCities
+        getStations : getStations
     };
 })();
 var templates = (function(){
     var getCompanyTemplate = function(result){
-		var data = result.networks;
-        console.log('getCompanyTemplate',data);
+        console.log('getCompanyTemplate',result);
+		var stations = result.data;
         var template = `<div class="card">
         
         <div class="card-content">
@@ -155,15 +247,15 @@ var templates = (function(){
               </figure>
             </div>
             <div class="media-content">
-              <p class="title is-4">${data.company}</p>
-              <p class="subtitle is-6">${data.name}</p>
+              <p class="title is-4">${result.company}</p>
+              <p class="subtitle is-6">${result.name}</p>
             </div>
           </div>
       
           <div class="content">
             <div class="columns is-multiline is-mobile is-gapless">
                 <div class="column js-select-stations"></div>
-                ${data.stations.map(obj => `<!--<div class="column is-one-quarter">${obj.name}</div>-->`).join('')} 
+                ${stations.map(obj => `<!--<div class="column is-one-quarter">${obj.name}</div>-->`).join('')} 
             </div>
           </div>
           <div class="js-data-station"></div>
@@ -171,21 +263,13 @@ var templates = (function(){
       </div>`;
 
         $('.js-card-stations').html(template);
-        console.log('_STATIONS: ', data.id + '_stations');
         var stations_data = [];
-        if(typeof LocalStorageDataApi.getDataLocalStorage(data.id + '_stations')  === 'object'){
-            LocalStorageDataApi.getDataLocalStorage(data.id + '_stations').map(obj => stations_data.push({'value':obj.id,'text':obj.name}));
-        } else {
-            data.stations.map(obj => stations_data.push({'value':obj.id,'text':obj.name}));
-            LocalStorageDataApi.setDataLocalStorage(data.id + '_stations',data.stations);
-        }
         var select_stations = $('.js-select-stations');
-        select_stations.data('companyid',data.id);
-        createCombo.built(stations_data,select_stations,'',templates.getStationData);
+        createCombo.built(stations,select_stations,'',templates.getStationData);
     };
 
     var getStationData = function(obj,text,value){
-        var parent_select = obj.closest('.js-select-stations');
+        /* var parent_select = obj.closest('.js-select-stations');
         var company_stations = parent_select.data('companyid') + '_stations';
         var station = LocalStorageDataApi.getDataLocalStorage(company_stations).find(
             elem => {
@@ -194,9 +278,9 @@ var templates = (function(){
                 }
                 return false;
             }
-        );
-        console.log('templates getData: ', obj,text,value,parent_select.data('companyid'),station);
-        getStationTemplate(station);
+        ); */
+        console.log('templates getData: ', obj,text,value);
+        //getStationTemplate(station);
     };
     var getStationTemplate= function(station){
         var time_update = moment(station.timestamp).format("YYYY-MM-DD HH:mm");
@@ -234,43 +318,35 @@ var templates = (function(){
  * 
  * */
 		transactions.getItem(transactions.dbPromise,'cities',value);
-        //transactions.getItem(dbPromise,'cities',value,dataAppDDBB.getCities);
-        /* var url = 'http://api.citybik.es/v2/networks';
-        var promise = caches.match(url).then(function(response) {
-            console.log('RESPONSE: ', response);
-            return response || fetch(url);
-        });
-        promise.then(function(response){
-            return response.json();
-        }).then( data => { 
-            console.log('data.networks: ', data.networks); 
-        });
-            // Replace ./data.json with your JSON feed
-        fetch(url).then(response => {
-        return response.json();
-        }).then(data => {
-            // Work with JSON data here
-            let cities = data.networks.filter(obj => obj.location.country === value);
-            console.log('CITY: ', cities);
-            var cities_data = [];
-            var city_data = {};
-
-            $.each(cities, function (index, obj) { 
-                city_data = {value: obj.id, text: obj.location.city};
-                cities_data.push(city_data);
-            });
-            createCombo.built(cities_data,$('.js-target-combo-cities'),'',templates.getCitiesTemplate);
-        }).catch(err => {
-            // Do something for an error here
-            console.log('Upsss! ', err);
-        }); */
-        console.log('getCitiesData: ', obj,text,value);
+        //console.log('getCitiesData: ', obj,text,value);
     };
     var getCitiesTemplate = function(obj,text,value){
         //templates.getCompanyTemplate(cities_data);
         var url = 'http://api.citybik.es/v2/networks/'+ value;
-        dataApp.fetchData(url,dataApp.getStations);
-        console.log('GETCITIESTEMPLATE: ', obj,text,value);  
+		//dataApp.fetchData(url,dataApp.getStations);
+		
+		/**
+		 * No existe los datos en la BBDD asi que acusimos a la API
+		 * Obtenmos datos de la API
+		 * Guardamos datos en base de datos
+		 * Pintamos template
+		 * 
+		 * Estructura en la base de datos - JSON 
+		 * 	Clave - Código del pais
+		 * 	Valor - Array de JSON con los datos de las ciudades de ese pais
+		 * 	 Ej.:´
+		 *  { 'ES' : [{},{}}}
+		 * 
+		 * TODO - EXPERT - Comprobar que todas las ciudades en la BBDD son las mismas que las que 
+		 * existe en la API. Verificar las actualizaciones
+		 * 	 
+		 * 	
+		 * Crear funcion para obtener los datos
+		 * Crear funcion que pinte los datos
+		 * 
+		 * 
+		 */
+        console.log('GETCITIESTEMPLATE: ', obj,text,value,url);  
     };
 
     return {
@@ -296,8 +372,13 @@ var transactions = (function(){
 		}
 		console.log('Create object store cities');
 		if (!upgradeDb.objectStoreNames.contains('cities')) {
-			var cities = upgradeDb.createObjectStore('cities',{keyPath: 'code'});
-			cities.createIndex('code', 'code', { unique : true});
+			var cities = upgradeDb.createObjectStore('cities',{keyPath: 'code_country'});
+			cities.createIndex('code_country', 'code_country', { unique : true});
+		}
+		console.log('Create object store stations');
+		if (!upgradeDb.objectStoreNames.contains('stations')) {
+			var cities = upgradeDb.createObjectStore('stations',{keyPath: 'code_city'});
+			cities.createIndex('code_city', 'code_city', { unique : true});
 		}
     });
     var createCountries = function(dbPromise){
@@ -310,7 +391,7 @@ var transactions = (function(){
                 {code: 'FR', name: 'FRANCIA'}
             ];
             return Promise.all(items.map(function(item) {
-                console.log('Adding item: ', item);
+                //console.log('Adding item: ', item);
                 return store.add(item);
                 })
             ).catch(function(e) {
@@ -328,7 +409,7 @@ var transactions = (function(){
             var tx = db.transaction('cities', 'readwrite');
             var store = tx.objectStore('cities');
 			store.add(item);
-			createCombo.built(item.value,$('.js-target-combo-cities'),'',templates.getCitiesTemplate);
+			createCombo.built(item.data,$('.js-target-combo-cities'),'',dataAppDDBB.getStations);
 			return tx.complete;
         }).then(function(item) {
 			console.log('All items added successfully!',item);
@@ -336,6 +417,19 @@ var transactions = (function(){
         });
     };
 
+	var createStations = function(dbPromise,item,fn){
+		console.log('MSG',item);
+        dbPromise.then(function(db) {
+            var tx = db.transaction('stations', 'readwrite');
+            var store = tx.objectStore('stations');
+			store.add(item);
+			templates.getCompanyTemplate(item);
+			return tx.complete;
+        }).then(function(item) {
+			console.log('All items added successfully!',item);
+			fn('OK!');
+        });
+    };
 	var ok = function(msg){
 		console.log('msg',msg);
 	};
@@ -349,7 +443,42 @@ var transactions = (function(){
                 fn(allObjs);
             }
         ); 
-    };
+	};
+	
+	var getItemDos = function(dbPromise,obj_store,index,fn){
+		/**
+		* No existe los datos en la BBDD asi que acusimos a la API
+		* Obtenmos datos de la API
+		* Guardamos datos en base de datos
+		* Pintamos template
+		* 
+		* Estructura en la base de datos - JSON 
+		* 	Clave - Código del pais
+		* 	Valor - Array de JSON con los datos de las ciudades de ese pais
+		* 	 Ej.:´
+		*  { 'ES' : [{},{}}}
+		* 
+		* TODO - EXPERT - Comprobar que todas las ciudades en la BBDD son las mismas que las que 
+		* existe en la API. Verificar las actualizaciones
+		*/
+		dbPromise.then(db => {
+            return db.transaction(obj_store)
+                .objectStore(obj_store).get(index);
+        }).then(obj => {
+			if(typeof obj !== 'undefined'){
+				console.log('item: ',index,obj);
+				fn(index,obj);
+			//createCombo.built(obj.value,$('.js-target-combo-cities'),'',dataAppDDBB.getStations);
+			} else {
+				// FETCH FUNCITION
+				console.log('FETCH FUNCITION: ',index);
+				fn(index);
+			}
+        }).catch(error => {
+			
+			console.log('error: ',error);
+		})
+	};
 
     var getItem = function(dbPromise,obj_store,index,fn){
         dbPromise.then(db => {
@@ -359,7 +488,7 @@ var transactions = (function(){
                 //fn(obj);
 				if(typeof obj !== 'undefined'){
 					console.log('item: ',obj);
-					createCombo.built(obj.value,$('.js-target-combo-cities'),'',templates.getCitiesTemplate);
+					createCombo.built(obj.data,$('.js-target-combo-cities'),'',dataAppDDBB.getStations);
 				} else {
 					/**
 					 * No existe los datos en la BBDD asi que acusimos a la API
@@ -390,12 +519,12 @@ var transactions = (function(){
 							var city_data = {};
 							
 							$.each(cities, function (index, obj) { 
-								city_data = {index: obj.id, text: obj.location.city};
+								city_data = {value: obj.id, text: obj.location.city};
 								cities_data.push(city_data);
 							});
 							var cities_bbdd = {
-								'code' : index,
-								'value' :cities_data
+								'code_country' 	: index,
+								'data' 			:cities_data
 							};
 							// Guardamos en la base de datos las ciudades
 							console.log('cities_bbdd: ', cities_bbdd);
@@ -434,10 +563,12 @@ var transactions = (function(){
     return {
 		dbPromise 		: dbPromise,
         createCountries	: createCountries,
+		createCities 	: createCities,
+		createStations 	: createStations,
         getAllitems    	: getAllitems,
         getItem        	: getItem,
 		getCursor      	: getCursor,
-		createCities 	: createCities,
+		getItemDos 		: getItemDos,
 		ok : ok
     };
 })();
