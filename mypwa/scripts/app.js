@@ -46,74 +46,6 @@ var createCombo = (function(){
     };
 })();
 
-var LocalStorageDataApi = (function(){
-
-    var getDataLocalStorage = function(item){
-        window[item] = localStorage.getItem(item) ? JSON.parse(localStorage.getItem(item)) : window[item] ;
-        return window[item];
-    };
-    var setDataLocalStorage = function(item,data){
-        //localStorage.clear();
-        localStorage.setItem(item, JSON.stringify(data));
-    };
-    return {
-        getDataLocalStorage     : getDataLocalStorage,
-        setDataLocalStorage     : setDataLocalStorage
-    };
-    
-})();
-
-var dataApp = (function(){
-    var fetchData = function(url,fn){
-        var networkDataReceived = false;
-        // fetch fresh data
-        var networkUpdate = fetch(url).then(function(response) {
-            return response.json();
-        }).then(function(data) {
-            networkDataReceived = true;
-            fn(data,'NETWORK');
-        });
-        
-        // fetch cached data
-        caches.match(url).then(function(response) {
-            if (!response) throw Error("No data");
-            return response.json();
-        }).then(function(data) {
-            // don't overwrite newer network data
-            if (!networkDataReceived) {
-                fn(data,'CACHES');
-            }
-        }).catch(function() {
-            // we didn't get cached data, the network is our last hope;  
-            return networkUpdate;
-        }).catch(function(err){
-            console.log('error: ', err);
-        });
-    };
-    var getCountries = function(data,type){
-        console.log('Countries: ', data,type);
-        /* $.each( data.networks, function( index, obj ){
-            if(obj.location.country === 'ES'){
-                LocalStorageDataApi.setDataLocalStorage(obj.location.country + '_' + obj.id ,obj);
-                //console.log('companny',obj.company,obj.location.city,obj.location.country,obj.name);
-            }
-        }); */
-        //$('body').append(type);
-    };
-    var getStations = function(data,type){
-        console.log('Stations: ', data,type);
-        $('body').append(type);
-        templates.getCompanyTemplate(data);
-    };
-    
-    return {
-        fetchData       :  fetchData,
-        getCountries    :  getCountries,
-        getStations     :  getStations
-        };
-
-})();
-
 var fetchDataApp = (function(){
 	var getStations = function(city_id,result){
 		/**
@@ -172,9 +104,18 @@ var fetchDataApp = (function(){
 				console.log('Upsss! ', err);
 			});
 		}
-	};
+    };
+    var getStation = function(city_id,result){
+		if(typeof result !== 'undefined'){
+			var cityId = $('.js-select-stations select').val();
+			console.log('RESULT GETSTATION DOS: ',result,cityId);
+			//templates.getCompanyTemplate(result);
+			//Combo.built(obj.data,$('.js-target-combo-stations'),'',dataAppDDBB.getStations);
+		}
+    };
 	return {
-		getStations : getStations
+        getStations : getStations,
+        getStation  : getStation
 	};
 })();
 
@@ -228,9 +169,21 @@ var dataAppDDBB = (function(){
 		transactions.getItemDos(transactions.dbPromise,'stations',value,fetchDataApp.getStations);
         console.log('GETStationsTEMPLATE: ', value);  
     };
+    var getStation = function(obj,text,value){
+        var index = $('.js-card-stations .js-company-id').data('companyid');
+		/**
+		 * Obtenemos los datos de la BBDD, ya que las staciones no tienen endpoint
+		 * 
+		 * 
+		 */
+		//dbPromise,obj_store,index,fn
+		transactions.getItemDos(transactions.dbPromise,'stations',index,fetchDataApp.getStation);
+        console.log('GETSTATION: ', obj,text,value,index);  
+    };
     return {
-        getCountries : getCountries,
-        getStations : getStations
+        getCountries: getCountries,
+        getStations : getStations,
+        getStation  : getStation
     };
 })();
 var templates = (function(){
@@ -248,7 +201,7 @@ var templates = (function(){
             </div>
             <div class="media-content">
               <p class="title is-4">${result.company}</p>
-              <p class="subtitle is-6">${result.name}</p>
+              <p class="subtitle is-6 js-company-id" data-companyid="${result.code_city}">${result.name}</p>
             </div>
           </div>
       
@@ -265,7 +218,7 @@ var templates = (function(){
         $('.js-card-stations').html(template);
         var stations_data = [];
         var select_stations = $('.js-select-stations');
-        createCombo.built(stations,select_stations,'',templates.getStationData);
+        createCombo.built(stations,select_stations,'',dataAppDDBB.getStation);
     };
 
     var getStationData = function(obj,text,value){
@@ -446,6 +399,7 @@ var transactions = (function(){
 	};
 	
 	var getItemDos = function(dbPromise,obj_store,index,fn){
+        console.log('OBJ_STORE,INDEX,FN: ', obj_store,index);
 		/**
 		* No existe los datos en la BBDD asi que acusimos a la API
 		* Obtenmos datos de la API
@@ -702,10 +656,73 @@ var transactions = (function(){
  *          - Actualizaciones de empty_slots, free_bykes y timestamp
  *    
  * 
- * 
- * 
- 
- * 
  */
+
+
+
+/* var dataApp = (function(){
+    var fetchData = function(url,fn){
+        var networkDataReceived = false;
+        // fetch fresh data
+        var networkUpdate = fetch(url).then(function(response) {
+            return response.json();
+        }).then(function(data) {
+            networkDataReceived = true;
+            fn(data,'NETWORK');
+        });
+        
+        // fetch cached data
+        caches.match(url).then(function(response) {
+            if (!response) throw Error("No data");
+            return response.json();
+        }).then(function(data) {
+            // don't overwrite newer network data
+            if (!networkDataReceived) {
+                fn(data,'CACHES');
+            }
+        }).catch(function() {
+            // we didn't get cached data, the network is our last hope;  
+            return networkUpdate;
+        }).catch(function(err){
+            console.log('error: ', err);
+        });
+    };
+    var getCountries = function(data,type){
+        console.log('Countries: ', data,type);
+    };
+    var getStations = function(data,type){
+        console.log('Stations: ', data,type);
+        $('body').append(type);
+        templates.getCompanyTemplate(data);
+    };
+    
+    return {
+        fetchData       :  fetchData,
+        getCountries    :  getCountries,
+        getStations     :  getStations
+        };
+
+})(); 
+
+--------------------------------------------------
+var LocalStorageDataApi = (function(){
+
+    var getDataLocalStorage = function(item){
+        window[item] = localStorage.getItem(item) ? JSON.parse(localStorage.getItem(item)) : window[item] ;
+        return window[item];
+    };
+    var setDataLocalStorage = function(item,data){
+        //localStorage.clear();
+        localStorage.setItem(item, JSON.stringify(data));
+    };
+    return {
+        getDataLocalStorage     : getDataLocalStorage,
+        setDataLocalStorage     : setDataLocalStorage
+    };
+    
+})();
+
+
+*/
 
 
