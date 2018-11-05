@@ -68,7 +68,7 @@ var fetchDataApp = (function(){
 		 * 
 		 */
 		if(typeof result !== 'undefined'){
-			console.log('result: ',result);
+			//console.log('result: ',result);
 			templates.getCompanyTemplate(result);
 			//Combo.built(obj.data,$('.js-target-combo-stations'),'',dataAppDDBB.getStations);
 		} else {
@@ -76,25 +76,28 @@ var fetchDataApp = (function(){
 			fetch(url).then(response => {
 				return response.json();
 			}).then(data => {
-					// Work with JSON data here
+                    // Work with JSON data here
+                    console.log('COMMENT: ', data);
 					let stations = data.network.stations;
 					let new_stations = stations.map((obj, i, stations) => {
 						return {
-						  'value'			: obj.id,
-						  'text'			: obj.name,
-						  'empty_slots'		: obj.empty_slots,
-						  'free_bikes'		: obj.free_bikes,
-						  'latitude'		: obj.latitude,
-						  'longitude'		: obj.longitude,
-						  'timestamp'		: obj.timestamp,
-						  'extra'			: obj.extra
+                            'value'			: obj.id,
+                            'text'			: obj.name,
+                            'empty_slots'		: obj.empty_slots,
+                            'free_bikes'		: obj.free_bikes,
+                            'latitude'		: obj.latitude,
+                            'longitude'		: obj.longitude,
+                            'timestamp'		: obj.timestamp,
+                            'extra'			: obj.extra
 						};
 					  });
 					var stations_bbdd = {
-						'company'		: data.network.company,
-						'name'			: data.network.name,
-						'code_city' 	: city_id,
-						'data' 			: new_stations,
+                        'company'     : data.network.company,
+                        'name'        : data.network.name,
+                        'code_city'   : city_id,
+                        'data'        : new_stations,
+                        'city_name'   : data.network.location.city,
+                        'code_country': data.network.location.country
 					};
 					// Guardamos en la base de datos las ciudades
 					console.log('stations_bbdd: ', stations_bbdd);
@@ -107,9 +110,16 @@ var fetchDataApp = (function(){
     };
     var getStation = function(city_id,result){
 		if(typeof result !== 'undefined'){
-			var cityId = $('.js-select-stations select').val();
-			console.log('RESULT GETSTATION DOS: ',result,cityId);
-			//templates.getCompanyTemplate(result);
+            var select_element = $('.js-select-stations select');
+            var station_id = select_element.val();
+            var station_name= $('.js-select-stations select option:selected').text()
+            console.log('RESULT GETSTATION DOS: ',result,station_id);
+            let station = result.data.filter( obj => {
+                return station_id === obj.value;
+            });
+            station[0].city_name = result.city_name;
+            station[0].code_country = result.code_country;
+			templates.getStationTemplate(station[0]);
 			//Combo.built(obj.data,$('.js-target-combo-stations'),'',dataAppDDBB.getStations);
 		}
     };
@@ -167,7 +177,7 @@ var dataAppDDBB = (function(){
 		 */
 		//dbPromise,obj_store,index,fn
 		transactions.getItemDos(transactions.dbPromise,'stations',value,fetchDataApp.getStations);
-        console.log('GETStationsTEMPLATE: ', value);  
+        //console.log('GETStationsTEMPLATE: ', value);  
     };
     var getStation = function(obj,text,value){
         var index = $('.js-card-stations .js-company-id').data('companyid');
@@ -188,7 +198,7 @@ var dataAppDDBB = (function(){
 })();
 var templates = (function(){
     var getCompanyTemplate = function(result){
-        console.log('getCompanyTemplate',result);
+        //console.log('GETCOMPANYTEMPLATE',result);
 		var stations = result.data;
         var template = `<div class="card">
         
@@ -222,27 +232,22 @@ var templates = (function(){
     };
 
     var getStationData = function(obj,text,value){
-        /* var parent_select = obj.closest('.js-select-stations');
-        var company_stations = parent_select.data('companyid') + '_stations';
-        var station = LocalStorageDataApi.getDataLocalStorage(company_stations).find(
-            elem => {
-                if(elem.id === value){
-                    return true;
-                }
-                return false;
-            }
-        ); */
-        console.log('templates getData: ', obj,text,value);
+        console.log('TEMPLATES GETDATA: ', obj,text,value);
         //getStationTemplate(station);
     };
     var getStationTemplate= function(station){
-        var time_update = moment(station.timestamp).format("YYYY-MM-DD HH:mm");
-        var address = station.extra.address || station.extra.description || '-';
-        var status = station.extra.status || station.extra.status.message || 'No Data';
+        console.log('COMMENT: ', station.extra);
+        var time_update = moment(station.timestamp).format("DD-MM-YYYY HH:mm");
+        var address = station.extra.address || station.extra.description ||  '-';
+        var status =  station.extra.status || '+';
+        if(typeof station.extra.status === 'object'){
+            status =  station.extra.status.message || '+';
+        }
+        console.log('typeof station.extra.status : ', typeof station.extra.status );
         var template = `<div class="js-stations">
                 <header class="card-header">
                     <p class="card-header-title">
-                    ${station.name}
+                    ${station.text + ' - ' + station.city_name + ' (' + station.code_country + ')'}
                     </p>
                 </header>
                 <div class="card-content">
@@ -306,7 +311,8 @@ var templates = (function(){
         getCompanyTemplate : getCompanyTemplate,
         getStationData     : getStationData,
         getCitiesData      : getCitiesData,
-        getCitiesTemplate  : getCitiesTemplate
+        getCitiesTemplate  : getCitiesTemplate,
+        getStationTemplate : getStationTemplate
     };
 })();
 
@@ -366,7 +372,7 @@ var transactions = (function(){
 			return tx.complete;
         }).then(function(item) {
 			console.log('All items added successfully!',item);
-			fn('OK!')
+			fn('OK!');
         });
     };
 
@@ -399,7 +405,7 @@ var transactions = (function(){
 	};
 	
 	var getItemDos = function(dbPromise,obj_store,index,fn){
-        console.log('OBJ_STORE,INDEX,FN: ', obj_store,index);
+        //console.log('OBJ_STORE,INDEX,FN: ', obj_store,index);
 		/**
 		* No existe los datos en la BBDD asi que acusimos a la API
 		* Obtenmos datos de la API
@@ -420,7 +426,7 @@ var transactions = (function(){
                 .objectStore(obj_store).get(index);
         }).then(obj => {
 			if(typeof obj !== 'undefined'){
-				console.log('item: ',index,obj);
+				//console.log('item: ',index,obj);
 				fn(index,obj);
 			//createCombo.built(obj.value,$('.js-target-combo-cities'),'',dataAppDDBB.getStations);
 			} else {
@@ -441,7 +447,7 @@ var transactions = (function(){
         }).then(obj => {
                 //fn(obj);
 				if(typeof obj !== 'undefined'){
-					console.log('item: ',obj);
+					//console.log('item: ',obj);
 					createCombo.built(obj.data,$('.js-target-combo-cities'),'',dataAppDDBB.getStations);
 				} else {
 					/**
