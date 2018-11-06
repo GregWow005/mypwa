@@ -36,13 +36,8 @@ var createCombo = (function(){
             //console.log('COMMENT: ', this_combo.children(':selected').text(),'-->',this_combo.val());
         });
     };
-
-    var getData = function(obj,text,value){
-        console.log('getData: ', obj,text,value);
-    };
     return {
-        built   : built,
-        getData : getData
+        built   : built
     };
 })();
 
@@ -201,36 +196,33 @@ var templates = (function(){
         //console.log('GETCOMPANYTEMPLATE',result);
 		var stations = result.data;
         var template = `<div class="card">
-        
         <div class="card-content">
-          <div class="media">
-            <div class="media-left">
-              <figure class="image is-48x48">
-                <img src="https://bulma.io/images/placeholders/96x96.png" alt="Placeholder image">
-              </figure>
+            <div class="media">
+                <div class="media-left">
+                <figure class="image is-48x48">
+                    <img src="https://bulma.io/images/placeholders/96x96.png" alt="Placeholder image">
+                </figure>
+                </div>
+                <div class="media-content">
+                <p class="title is-4">${result.company}</p>
+                <p class="subtitle is-6 js-company-id" data-companyid="${result.code_city}">${result.name}</p>
+                </div>
             </div>
-            <div class="media-content">
-              <p class="title is-4">${result.company}</p>
-              <p class="subtitle is-6 js-company-id" data-companyid="${result.code_city}">${result.name}</p>
+        
+            <div class="content">
+                <div class="columns is-multiline is-mobile is-gapless">
+                    <div class="column js-select-stations"></div>
+                    ${stations.map(obj => `<!--<div class="column is-one-quarter">${obj.name}</div>-->`).join('')} 
+                </div>
             </div>
-          </div>
-      
-          <div class="content">
-            <div class="columns is-multiline is-mobile is-gapless">
-                <div class="column js-select-stations"></div>
-                ${stations.map(obj => `<!--<div class="column is-one-quarter">${obj.name}</div>-->`).join('')} 
+            <div class="js-data-station"></div>
             </div>
-          </div>
-          <div class="js-data-station"></div>
-        </div>
-      </div>`;
-
+        </div>`;
         $('.js-card-stations').html(template);
         var stations_data = [];
         var select_stations = $('.js-select-stations');
         createCombo.built(stations,select_stations,'',dataAppDDBB.getStation);
     };
-
     var getStationData = function(obj,text,value){
         console.log('TEMPLATES GETDATA: ', obj,text,value);
         //getStationTemplate(station);
@@ -262,56 +254,21 @@ var templates = (function(){
         `;
         $('.js-data-station').html(template);
     };
-
     var getCitiesData = function(obj,text,value){
-
- /*     - Evento change sobre el combo de los paises.
- *      - Necesito los datos de las ciudades del pais seleccionado.
- *          - Cargarlos via API o via BBDD
- *          - ¿Existen en la BBDD?
- *               - Cargar de la BBDD
- *               - Cargar via API 
- * 
- * createCombo.built(cities_data,$('.js-target-combo-cities'),'',templates.getCitiesTemplate);
- * 
- * */
-		transactions.getItem(transactions.dbPromise,'cities',value);
-        //console.log('getCitiesData: ', obj,text,value);
-    };
-    var getCitiesTemplate = function(obj,text,value){
-        //templates.getCompanyTemplate(cities_data);
-        var url = 'http://api.citybik.es/v2/networks/'+ value;
-		//dataApp.fetchData(url,dataApp.getStations);
-		
-		/**
-		 * No existe los datos en la BBDD asi que acusimos a la API
-		 * Obtenmos datos de la API
-		 * Guardamos datos en base de datos
-		 * Pintamos template
-		 * 
-		 * Estructura en la base de datos - JSON 
-		 * 	Clave - Código del pais
-		 * 	Valor - Array de JSON con los datos de las ciudades de ese pais
-		 * 	 Ej.:´
-		 *  { 'ES' : [{},{}}}
-		 * 
-		 * TODO - EXPERT - Comprobar que todas las ciudades en la BBDD son las mismas que las que 
-		 * existe en la API. Verificar las actualizaciones
-		 * 	 
-		 * 	
-		 * Crear funcion para obtener los datos
-		 * Crear funcion que pinte los datos
-		 * 
-		 * 
-		 */
-        console.log('GETCITIESTEMPLATE: ', obj,text,value,url);  
+    /*     - Evento change sobre el combo de los paises.
+    *      - Necesito los datos de las ciudades del pais seleccionado.
+    *          - Cargarlos via API o via BBDD
+    *          - ¿Existen en la BBDD?
+    *               - Cargar de la BBDD
+    *               - Cargar via API 
+    */
+	transactions.getItem(transactions.dbPromise,'cities',value);
     };
 
     return {
         getCompanyTemplate : getCompanyTemplate,
         getStationData     : getStationData,
         getCitiesData      : getCitiesData,
-        getCitiesTemplate  : getCitiesTemplate,
         getStationTemplate : getStationTemplate
     };
 })();
@@ -352,7 +309,7 @@ var transactions = (function(){
             return Promise.all(items.map(function(item) {
                 //console.log('Adding item: ', item);
                 return store.add(item);
-                })
+            })
             ).catch(function(e) {
                 tx.abort();
                 console.log(e);
@@ -542,7 +499,7 @@ var transactions = (function(){
     //transactions.getItem(dbPromise,'countries','ES',console.log);
     //transactions.getCursor(dbPromise,'countries','ESPAÑA');
     
-    //Get Coutries 
+    //Get Countries 
     transactions.getAllitems(transactions.dbPromise,'countries',dataAppDDBB.getCountries);
     
 	// TODO add service worker code here
