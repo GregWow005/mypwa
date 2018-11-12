@@ -67,7 +67,7 @@ var fetchDataApp = (function(){
                 return response.json();
                 }).then(data => {
                     // Work with JSON data here
-                    let cities = data.networks.filter(obj => obj.location.country === index);
+                    let cities = data.networks.filter(obj => obj.location.country === value);
                     var cities_data = [];
                     var city_data = {};
                     
@@ -76,8 +76,8 @@ var fetchDataApp = (function(){
                         cities_data.push(city_data);
                     });
                     var cities_bbdd = {
-                        'code_country' 	: index,
-                        'data' 			:cities_data
+                        'code_country' 	: value,
+                        'data' 			: cities_data
                     };
                     // Guardamos en la base de datos las ciudades
                     console.log('cities_bbdd: ', cities_bbdd);
